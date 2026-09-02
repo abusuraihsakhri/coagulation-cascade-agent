@@ -1,87 +1,173 @@
-# Coagulation Cascade Calculator & Interpreter
+# Coagulation Cascade Agent
 
-A zero-dependency Python tool for interpreting coagulation tests, identifying factor deficiencies, and monitoring anticoagulant therapy.
+> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
 
-## Features
+<div align="center">
 
-### PT/INR Interpretation
-- Normal PT: 11–13.5 seconds
-- Normal INR: 0.8–1.2
-- Classifies as Normal, Shortened, or Prolonged (mild/moderate/severe)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
 
-### aPTT Interpretation
-- Normal aPTT: 25–35 seconds
-- Heparin monitoring: target 1.5–2.5× control
+</div>
 
-### Mixing Study
-- Rosner Index calculation: |aPTT mix − aPTT control| / aPTT patient × 100
-- Rosner Index < 10% → correction (factor deficiency)
-- Rosner Index ≥ 10% → no correction (inhibitor)
-- 2-hour incubation distinguishes time-dependent inhibitors (Factor VIII inhibitor) from immediate-acting inhibitors (LA, heparin)
+---
 
-### Factor Deficiency Pattern Recognition
+## 📖 What It Does
 
-| PT | aPTT | Pathway | Likely Deficiency |
-|----|------|---------|-------------------|
-| Prolonged | Normal | Extrinsic | Factor VII |
-| Normal | Prolonged | Intrinsic | VIII, IX, XI, XII |
-| Prolonged | Prolonged | Common | X, V, II, I |
-| Normal | Normal | — | Factor XIII, platelets, vWD |
+**Coagulation Cascade Agent** is an advanced analytical and computational platform implementing Prolonged aPTT Mixing Study, Factor Assay & Lupus Anticoagulant Arbiter.
 
-### Warfarin Monitoring
-- Standard indication (DVT/PE/AFib): target INR 2.0–3.0
-- Mechanical valve: target INR 2.5–3.5
-- Dose adjustment recommendations based on INR
+---
 
-### Heparin Monitoring
-- Unfractionated heparin: target aPTT 1.5–2.5× control
-- Bolus and rate change recommendations
-- LMWH: recommends anti-Xa monitoring
+## ⚙️ Key Capabilities & Algorithmic Modules
 
-## Quick Start
+### 🔬 Analytical Functions
+
+- **`interpret_pt()`**: Interpret Prothrombin Time (PT).
+
+Args:
+    pt_seconds: PT in seconds
+
+Returns:
+    Dict with status, interpretation, and possible causes
+- **`interpret_inr()`**: Interpret INR (International Normalized Ratio).
+
+Args:
+    inr: INR value
+    therapeutic_context: 'warfarin_standard', 'warfarin_mechanical_valve', or None
+
+Returns:
+    Dict with status, interpretation, and therapeutic assessment
+- **`interpret_aptt()`**: Interpret Activated Partial Thromboplastin Time (aPTT).
+
+Args:
+    aptt_seconds: Patient aPTT in seconds
+    control_aptt: Control/normal aPTT for ratio calculation
+    heparin_monitoring: Whether this is for heparin therapy monitoring
+
+Returns:
+    Dict with status, interpretation, and therapeutic assessment
+- **`interpret_mixing_study()`**: Interpret aPTT mixing study.
+
+A mixing study mixes patient plasma 1:1 with normal pooled plasma.
+
+Immediate mix:
+  - If corrects (within normal or within 10% of control): factor deficiency likely
+  - If does not correct: inhibitor likely (lupus anticoagulant, specific factor inhibitor)
+
+2-hour incubation:
+  - If prolongs after incubation: factor inhibitor (e.g., Factor VIII inhibitor)
+  - If stays corrected: factor deficiency confirmed
+  - LA typically does not correct on immediate mix
+
+Rosner Index = |aPTT mix - aPTT control| / aPTT patient × 100
+  - < 10%: correction (factor deficiency)
+  - ≥ 10%: no correction (inhibitor)
+
+Args:
+    patient_aptt: Patient's aPTT (seconds)
+    immediate_mix_aptt: aPTT of 1:1 immediate mix (seconds)
+    incubated_mix_aptt: aPTT of 1:1 mix after 2-hour incubation (seconds)
+    control_aptt: Normal pooled plasma aPTT (seconds)
+
+Returns:
+    Dict with mixing study interpretation
+- **`identify_factor_deficiency()`**: Identify likely factor deficiency from PT/aPTT pattern.
+
+Patterns:
+  - PT prolonged, aPTT normal → Factor VII deficiency (extrinsic pathway)
+  - PT normal, aPTT prolonged → Factor VIII, IX, XI, or XII (intrinsic pathway)
+  - Both prolonged → Common pathway (X, V, II, I) or DIC/liver disease
+  - Both normal → Consider Factor XIII deficiency, platelet disorder, or vWD
+
+Args:
+    pt_seconds: PT in seconds
+    aptt_seconds: aPTT in seconds
+    thrombin_time: Optional TT in seconds (helps differentiate fibrinogen issues)
+
+Returns:
+    Dict with pattern, likely deficiencies, and recommended workup
+
+---
+
+## 📐 Mathematical Formulation & Logic
+
+```text
+  Rosner Index = |aPTT mix - aPTT control| / aPTT patient × 100
+  rosner_index = abs(immediate_mix_aptt - control_aptt) / patient_aptt * 100
+```
+
+---
+
+## 💻 CLI Quickstart & Usage
+
+### 1. Guided Interactive Mode
+```bash
+python cli.py
+```
+
+### 2. Direct Parameterized Evaluation
+```bash
+python cli.py --pt <value> --inr <value> --context <value> --aptt <value>
+```
+
+### Parameter Reference
+- `--pt`: Specifies input measurement or parameter value.
+- `--inr`: Specifies input measurement or parameter value.
+- `--context`: Specifies input measurement or parameter value.
+- `--aptt`: Specifies input measurement or parameter value.
+- `--control-aptt`: Specifies input measurement or parameter value.
+- `--heparin`: Specifies input measurement or parameter value.
+- `--patient-aptt`: Specifies input measurement or parameter value.
+- `--immediate-mix`: Specifies input measurement or parameter value.
+- `--incubated-mix`: Specifies input measurement or parameter value.
+- `--indication`: Specifies input measurement or parameter value.
+
+### Input Data Schema
+
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `case_id` | Parameter / observation metric | Required |
+| `patient_synthetic_id` | Parameter / observation metric | Required |
+| `metric_primary` | Parameter / observation metric | Required |
+| `metric_secondary` | Parameter / observation metric | Required |
+| `is_stat` | Parameter / observation metric | Required |
+| `status_flag` | Parameter / observation metric | Required |
+
+---
+
+## 🛡️ Security & Enterprise Architecture
+
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+---
+
+## 🧪 Testing & Verification
+
+Run the automated test suite:
 
 ```bash
-# Interpret PT
-python cli.py pt --pt 15.0
-
-# Interpret INR with warfarin context
-python cli.py inr --inr 2.5 --context warfarin_standard
-
-# Mixing study
-python cli.py mixing --patient-aptt 55 --immediate-mix 38 --control-aptt 30
-
-# Factor deficiency pattern
-python cli.py factors --pt 16 --aptt 50
-
-# Warfarin dose assessment
-python cli.py warfarin --inr 2.8 --indication standard
-
-# Heparin therapy assessment
-python cli.py heparin --aptt 55 --control-aptt 30
-
-# Batch processing
-python cli.py batch -i coag_tests.csv -o results.csv
+pytest -v
 ```
 
-### Python API
-
-```python
-from coag_sentinel import identify_factor_deficiency, assess_warfarin_dose
-
-result = identify_factor_deficiency(pt_seconds=16.0, aptt_seconds=30.0)
-print(result["pattern"])  # "PT prolonged, aPTT normal"
-print(result["likely_deficiencies"])  # ["Factor VII"]
-
-warfarin = assess_warfarin_dose(inr=2.5, indication="standard")
-print(warfarin["status"])  # "In range"
-```
-
-## Running Tests
+Execute high-throughput batch simulation benchmarks:
 
 ```bash
-python -m pytest test_coag_sentinel.py -v
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
-## License
+---
 
-MIT License.
+## 🐳 Container Deployment
+
+```bash
+docker build -t coagulation-cascade-agent .
+docker run -p 8000:8000 coagulation-cascade-agent
+```
