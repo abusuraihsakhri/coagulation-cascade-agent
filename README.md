@@ -1,173 +1,203 @@
 # Coagulation Cascade Agent
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Hematology / Coagulation & Clinical Decision Support  
+> **Standards:** CLSI H54-A (Mixing Studies), ISTH SSC Guidelines (Lupus Anticoagulant & DIC Criteria), CAP Coagulation Checklists
 
-<div align="center">
-
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
-
-</div>
+[![Tests: Pytest](https://img.shields.io/badge/Pytest-Passing-brightgreen.svg)](tests/)
 
 ---
 
-## 📖 What It Does
+## 📖 Overview
 
-**Coagulation Cascade Agent** is an advanced analytical and computational platform implementing Prolonged aPTT Mixing Study, Factor Assay & Lupus Anticoagulant Arbiter.
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Analytical Functions
-
-- **`interpret_pt()`**: Interpret Prothrombin Time (PT).
-
-Args:
-    pt_seconds: PT in seconds
-
-Returns:
-    Dict with status, interpretation, and possible causes
-- **`interpret_inr()`**: Interpret INR (International Normalized Ratio).
-
-Args:
-    inr: INR value
-    therapeutic_context: 'warfarin_standard', 'warfarin_mechanical_valve', or None
-
-Returns:
-    Dict with status, interpretation, and therapeutic assessment
-- **`interpret_aptt()`**: Interpret Activated Partial Thromboplastin Time (aPTT).
-
-Args:
-    aptt_seconds: Patient aPTT in seconds
-    control_aptt: Control/normal aPTT for ratio calculation
-    heparin_monitoring: Whether this is for heparin therapy monitoring
-
-Returns:
-    Dict with status, interpretation, and therapeutic assessment
-- **`interpret_mixing_study()`**: Interpret aPTT mixing study.
-
-A mixing study mixes patient plasma 1:1 with normal pooled plasma.
-
-Immediate mix:
-  - If corrects (within normal or within 10% of control): factor deficiency likely
-  - If does not correct: inhibitor likely (lupus anticoagulant, specific factor inhibitor)
-
-2-hour incubation:
-  - If prolongs after incubation: factor inhibitor (e.g., Factor VIII inhibitor)
-  - If stays corrected: factor deficiency confirmed
-  - LA typically does not correct on immediate mix
-
-Rosner Index = |aPTT mix - aPTT control| / aPTT patient × 100
-  - < 10%: correction (factor deficiency)
-  - ≥ 10%: no correction (inhibitor)
-
-Args:
-    patient_aptt: Patient's aPTT (seconds)
-    immediate_mix_aptt: aPTT of 1:1 immediate mix (seconds)
-    incubated_mix_aptt: aPTT of 1:1 mix after 2-hour incubation (seconds)
-    control_aptt: Normal pooled plasma aPTT (seconds)
-
-Returns:
-    Dict with mixing study interpretation
-- **`identify_factor_deficiency()`**: Identify likely factor deficiency from PT/aPTT pattern.
-
-Patterns:
-  - PT prolonged, aPTT normal → Factor VII deficiency (extrinsic pathway)
-  - PT normal, aPTT prolonged → Factor VIII, IX, XI, or XII (intrinsic pathway)
-  - Both prolonged → Common pathway (X, V, II, I) or DIC/liver disease
-  - Both normal → Consider Factor XIII deficiency, platelet disorder, or vWD
-
-Args:
-    pt_seconds: PT in seconds
-    aptt_seconds: aPTT in seconds
-    thrombin_time: Optional TT in seconds (helps differentiate fibrinogen issues)
-
-Returns:
-    Dict with pattern, likely deficiencies, and recommended workup
+**Coagulation Cascade Agent** is a comprehensive clinical computational engine and diagnostic arbiter for hematology laboratory profiles. It evaluates:
+- **Prothrombin Time (PT)** and **International Normalized Ratio (INR)** for extrinsic pathway integrity and vitamin K antagonist (warfarin) monitoring.
+- **Activated Partial Thromboplastin Time (aPTT)** for intrinsic pathway kinetics and unfractionated heparin (UFH) titration.
+- **Mixing Studies (1:1 Normal Pooled Plasma)** with immediate and 2-hour 37°C incubation to differentiate factor deficiencies from circulating inhibitors (lupus anticoagulant vs. specific factor inhibitors).
+- **Factor Deficiency Differential Diagnosis** mapping extrinsic, intrinsic, and common pathway defects.
+- **Disseminated Intravascular Coagulation (DIC)** ISTH scoring algorithms.
 
 ---
 
-## 📐 Mathematical Formulation & Logic
+## 🧬 Coagulation Cascade Pathway Kinetics
 
-```text
-  Rosner Index = |aPTT mix - aPTT control| / aPTT patient × 100
-  rosner_index = abs(immediate_mix_aptt - control_aptt) / patient_aptt * 100
+The classical coagulation cascade is structured into three convergent pathways:
+
+```
+Extrinsic Pathway (Tissue Factor, VII)           Intrinsic Pathway (XII, XI, IX, VIII)
+               \                                                  /
+                \                                                /
+                 v                                              v
+           [ PT / INR ]                                    [ aPTT ]
+                 \                                              /
+                  \                                            /
+                   +------------------> [ Common Pathway ] <--+
+                                        (X, V, II, I)
+                                              |
+                                              v
+                                   Prothrombin (II) -> Thrombin (IIa)
+                                              |
+                                              v
+                                   Fibrinogen (I)  -> Fibrin Clot
 ```
 
+### Reference Ranges & Pathway Mapping
+
+| Test | Normal Reference Range | Primary Pathway Evaluated | Critical Coagulation Factors |
+| :--- | :--- | :--- | :--- |
+| **PT** | 11.0 – 13.5 seconds | Extrinsic & Common | Factor VII, X, V, Prothrombin (II), Fibrinogen (I) |
+| **INR** | 0.8 – 1.2 (Target: 2.0–3.0 / 2.5–3.5) | Extrinsic (Warfarin standard) | Factor VII, X, II (Vitamin K-dependent) |
+| **aPTT** | 25.0 – 35.0 seconds | Intrinsic & Common | Factors XII, XI, IX, VIII, X, V, II, Fibrinogen |
+| **Thrombin Time (TT)** | 14.0 – 19.0 seconds | Fibrinogen Conversion | Fibrinogen quantity/function, Heparin effect |
+
 ---
 
-## 💻 CLI Quickstart & Usage
+## 🧪 Prolonged aPTT Mixing Study Algorithm
 
-### 1. Guided Interactive Mode
+When an unexplained prolongation of aPTT is detected, a **1:1 mixing study** with Normal Pooled Plasma (NPP) is performed immediately and after a 2-hour 37°C incubation.
+
+```
+                             Patient aPTT Prolonged (> 35s)
+                                           |
+                                 Perform 1:1 Mix (NPP)
+                                           |
+                    +----------------------+----------------------+
+                    |                                             |
+           Immediate Correction                         No Immediate Correction
+          (Rosner Index < 10%)                           (Rosner Index >= 10%)
+                    |                                             |
+          2-Hour Incubation at 37°C                      Immediate Inhibitor
+                    |                                  (Lupus Anticoagulant or Heparin)
+         +----------+----------+                                  |
+         |                     |                          Order dRVVT Screen/Confirm
+    Stays Corrected      Prolongs Again                           Heparin Adsorption
+         |                     |
+   Factor Deficiency     Time-Dependent Inhibitor
+   (VIII, IX, XI, XII)   (e.g., Factor VIII Inhibitor)
+         |                     |
+  Order Factor Assays   Order Bethesda Assay Titers
+```
+
+### Mathematical Indices
+
+#### 1. Rosner Index (Index of Circulating Anticoagulant - ICA)
+$$\text{Rosner Index (\%)} = \frac{|\text{aPTT}_{\text{1:1 mix}} - \text{aPTT}_{\text{control}}|}{\text{aPTT}_{\text{patient}}} \times 100$$
+- **$< 10.0\%$:** Correction $\rightarrow$ Factor Deficiency.
+- **$\ge 10.0\%$:** Lack of correction $\rightarrow$ Inhibitor present.
+
+#### 2. Chang Percent Correction
+$$\text{Chang Ratio (\%)} = \frac{\text{aPTT}_{\text{patient}} - \text{aPTT}_{\text{1:1 mix}}}{\text{aPTT}_{\text{patient}} - \text{aPTT}_{\text{control}}} \times 100$$
+- **$> 70.0\%$:** Complete correction $\rightarrow$ Factor Deficiency.
+- **$< 58.0\%$:** Failure to correct $\rightarrow$ Circulating Inhibitor.
+
+---
+
+## 📊 DIC Diagnostic Criteria (ISTH 2001 Scientific Subcommittee)
+
+Overt Disseminated Intravascular Coagulation (DIC) is calculated based on standard laboratory parameters in patients with an underlying disorder known to cause DIC:
+
+| Diagnostic Parameter | Clinical Laboratory Value | ISTH Points |
+| :--- | :--- | :---: |
+| **Platelet Count** | $> 100 \times 10^9/\text{L}$ | 0 |
+| | $50 - 100 \times 10^9/\text{L}$ | 1 |
+| | $< 50 \times 10^9/\text{L}$ | 2 |
+| **Elevated Fibrin-Related Markers** (D-Dimer / FDP) | No increase | 0 |
+| | Moderate increase | 2 |
+| | Strong increase | 3 |
+| **Prolonged Prothrombin Time (PT)** | $< 3$ seconds prolongation | 0 |
+| | $3 - 6$ seconds prolongation | 1 |
+| | $> 6$ seconds prolongation | 2 |
+| **Fibrinogen Level** | $> 1.0\text{ g/L}$ | 0 |
+| | $< 1.0\text{ g/L}$ | 1 |
+
+$$\text{Total Score} = \sum (\text{Points})$$
+- **$\text{Total Score} \ge 5$:** Compatible with **Overt DIC** (repeat score daily).
+- **$\text{Total Score} < 5$:** Suggestive of **Non-Overt DIC** (re-evaluate in 24–48 hours).
+
+---
+
+## 💊 Anticoagulation Dosing & Heparin Monitoring Rules
+
+### Warfarin Monitoring (INR Targets)
+- **Standard Indications** (DVT/PE, Non-valvular Atrial Fibrillation): Target INR **2.0 – 3.0**.
+- **Mechanical Prosthetic Mitral Valve**: Target INR **2.5 – 3.5**.
+- **Management of Supratherapeutic INR:**
+  - $\text{INR } 4.5 - 10.0$ (no bleeding): Hold 1–2 doses, decrease maintenance dose by 10–20%.
+  - $\text{INR } > 10.0$ (no bleeding): Hold warfarin, administer oral vitamin K1 (2.5–5 mg).
+  - Serious/life-threatening bleed: Hold warfarin, IV vitamin K1 (10 mg), 4-factor Prothrombin Complex Concentrate (4F-PCC).
+
+### Unfractionated Heparin (UFH) Titration (aPTT Ratio)
+$$\text{Ratio} = \frac{\text{Patient aPTT}}{\text{Control aPTT}}$$
+- **Therapeutic Target:** $1.5 - 2.5\times$ control baseline.
+- **Ratio $< 1.2$:** Bolus 80 units/kg, increase infusion rate by 4 units/kg/hr.
+- **Ratio $1.2 - 1.49$:** Increase infusion rate by 2 units/kg/hr.
+- **Ratio $1.5 - 2.5$:** Therapeutic. Maintain current infusion rate.
+- **Ratio $2.51 - 3.0$:** Decrease infusion rate by 2 units/kg/hr.
+- **Ratio $> 3.0$:** Pause infusion for 1 hour, decrease rate by 3 units/kg/hr, monitor for hemorrhage.
+
+---
+
+## 💻 CLI Quickstart
+
+### 1. Prothrombin Time (PT)
 ```bash
-python cli.py
+python cli.py pt --pt 16.5
 ```
 
-### 2. Direct Parameterized Evaluation
+### 2. International Normalized Ratio (INR)
 ```bash
-python cli.py --pt <value> --inr <value> --context <value> --aptt <value>
+python cli.py inr --inr 2.8 --context warfarin_standard
 ```
 
-### Parameter Reference
-- `--pt`: Specifies input measurement or parameter value.
-- `--inr`: Specifies input measurement or parameter value.
-- `--context`: Specifies input measurement or parameter value.
-- `--aptt`: Specifies input measurement or parameter value.
-- `--control-aptt`: Specifies input measurement or parameter value.
-- `--heparin`: Specifies input measurement or parameter value.
-- `--patient-aptt`: Specifies input measurement or parameter value.
-- `--immediate-mix`: Specifies input measurement or parameter value.
-- `--incubated-mix`: Specifies input measurement or parameter value.
-- `--indication`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `case_id` | Parameter / observation metric | Required |
-| `patient_synthetic_id` | Parameter / observation metric | Required |
-| `metric_primary` | Parameter / observation metric | Required |
-| `metric_secondary` | Parameter / observation metric | Required |
-| `is_stat` | Parameter / observation metric | Required |
-| `status_flag` | Parameter / observation metric | Required |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
-
+### 3. Activated Partial Thromboplastin Time (aPTT)
 ```bash
-pytest -v
+python cli.py aptt --aptt 68.0 --control-aptt 30.0 --heparin
 ```
 
-Execute high-throughput batch simulation benchmarks:
-
+### 4. 1:1 Mixing Study Interpretation
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python cli.py mixing --patient-aptt 58.0 --immediate-mix 32.0 --incubated-mix 49.0 --control-aptt 30.0
+```
+
+### 5. Factor Deficiency Pattern Identifier
+```bash
+python cli.py factors --pt 12.0 --aptt 54.0
+```
+
+### 6. Warfarin Titration Guidance
+```bash
+python cli.py warfarin --inr 4.2 --indication standard
+```
+
+### 7. Heparin Infusion Adjustment
+```bash
+python cli.py heparin --aptt 42.0 --control-aptt 30.0
+```
+
+### 8. Batch Processing
+Process clinical CSV cohort files with automated diagnostics:
+```bash
+python cli.py batch -i sample.csv -o results.csv
 ```
 
 ---
 
-## 🐳 Container Deployment
+## 🧪 Verification & Testing
 
+Execute the complete test suite:
 ```bash
-docker build -t coagulation-cascade-agent .
-docker run -p 8000:8000 coagulation-cascade-agent
+python -m pytest -p no:zarr -v
 ```
+
+Execute CLI batch smoke test:
+```bash
+python cli.py batch -i sample.csv -o out_smoke.csv
+python -c "import os; assert os.path.exists('out_smoke.csv'); os.remove('out_smoke.csv')"
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -1,4 +1,8 @@
-case_id,patient_synthetic_id,metric_primary,metric_secondary,is_stat,status_flag
-CASE-001,SYNTH-01,25.4,14.2,True,DISCORDANT
-CASE-002,SYNTH-02,12.0,4.1,False,NORMAL
-CASE-003,SYNTH-03,32.0,18.5,True,SUSPICIOUS
+case_id,patient_synthetic_id,mode,pt,aptt,control_aptt,inr,indication,is_stat
+CASE-001,SYNTH-01,factor_deficiency,12.2,28.4,30.0,1.0,,False
+CASE-002,SYNTH-02,factor_deficiency,19.5,29.1,30.0,1.8,,False
+CASE-003,SYNTH-03,factor_deficiency,12.4,56.8,30.0,1.0,,True
+CASE-004,SYNTH-04,factor_deficiency,22.1,64.5,31.0,2.1,,True
+CASE-005,SYNTH-05,warfarin,,,,2.4,standard,False
+CASE-006,SYNTH-06,warfarin,,,,4.8,mechanical_valve,True
+CASE-007,SYNTH-07,heparin,,72.0,30.0,,,True

@@ -83,6 +83,21 @@ def main(argv=None):
     p_batch.add_argument("-i", "--input", required=True, help="Input CSV")
     p_batch.add_argument("-o", "--output", default="results.csv", help="Output CSV")
 
+    # Audit
+    p_audit = subparsers.add_parser("audit", help="Run supervisor audit on task")
+    p_audit.add_argument("--task-id", default="CLI-AUDIT-01", help="Task ID")
+    p_audit.add_argument("--target", default="KEY-01", help="Target identifier")
+    p_audit.add_argument("--primary", type=float, default=12.0, help="Primary metric")
+    p_audit.add_argument("--secondary", type=float, default=4.0, help="Secondary metric")
+    p_audit.add_argument("--status", default="NOMINAL", help="Status descriptor")
+
+    # Chat
+    p_chat = subparsers.add_parser("chat", help="Supervisory chat query")
+    p_chat.add_argument("query", nargs="+", help="Query string")
+
+    # Verify Audit
+    p_v_audit = subparsers.add_parser("verify-audit", help="Verify cryptographic audit trail")
+
     args = parser.parse_args(argv)
 
     if args.command == "pt":
@@ -106,6 +121,29 @@ def main(argv=None):
     elif args.command == "batch":
         n = process_batch(args.input, args.output)
         print(f"Processed {n} records -> {args.output}")
+    elif args.command == "audit":
+        from agents.supervisor import SystemSupervisor
+        from agents.models import SystemTaskPayload
+        supervisor = SystemSupervisor(model_provider="mock")
+        payload = SystemTaskPayload(
+            task_id=args.task_id,
+            target_identifier=args.target,
+            primary_metric=args.primary,
+            secondary_metric=args.secondary,
+            status_descriptor=args.status,
+        )
+        dossier = supervisor.process_task(payload)
+        print(json.dumps(dossier.model_dump(), indent=2))
+    elif args.command == "chat":
+        from agents.supervisor import SystemSupervisor
+        supervisor = SystemSupervisor(model_provider="mock")
+        response = supervisor.query_supervisory_chat(" ".join(args.query))
+        print(response)
+    elif args.command == "verify-audit":
+        from agents.base import AuditLogger
+        ok = AuditLogger.verify_integrity()
+        print(f"Audit trail integrity verified: {ok}")
+        return 0 if ok else 1
 
     return 0
 
