@@ -51,6 +51,16 @@ jobs:
       - name: Compatibility launcher smoke test
         run: python coag_sentinel_app.py pt --pt 12.0
 
+      - name: Static web smoke test
+        run: |
+          python -m http.server 8000 --directory web >/tmp/coag-pages.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:8000/ | grep -q "Coagulation Cascade Calculator"
+          curl --fail --silent http://127.0.0.1:8000/styles.css >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/app.js >/dev/null
+
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
