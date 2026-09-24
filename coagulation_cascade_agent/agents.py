@@ -1,7 +1,4 @@
-"""
-Distributed Component Hierarchy & Executive Coordinator for CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent.
-Domain: Hematology / Coagulation
-"""
+"""Legacy threshold-demo coordinator retained for backwards compatibility."""
 import uuid
 from typing import Dict, Any, List, Optional
 from .models import ClinicalCasePayload, AgentAlert, UrgencyLevel, ClinicalIntegrityStatus
@@ -26,7 +23,7 @@ class MixingStudyAnalyzerAgent:
 
 
 class FactorInhibitorClassifierAgent:
-    """Sub-Agent 2: STAT Kinetics & Closed-Loop Escalation Auditor."""
+    """Sub-agent 2: demonstration secondary-metric and priority-flag auditor."""
     def audit(self, case: ClinicalCasePayload) -> List[AgentAlert]:
         alerts = []
         res = ClinicalDomainEngine.evaluate_secondary_kinetics(case.secondary_metric, case.is_stat)
@@ -60,7 +57,7 @@ class LupusAnticoagulantAssessorAgent:
 
 
 class CoagCoordinator:
-    """Executive Coordinator & Air-Gapped Supervisory Interface."""
+    """In-memory coordinator for the legacy demonstration workflow."""
     def __init__(self):
         self.agent_1 = MixingStudyAnalyzerAgent()
         self.agent_2 = FactorInhibitorClassifierAgent()
@@ -93,7 +90,7 @@ class CoagCoordinator:
             "stat_critical_alerts": stat_count,
             "warning_alerts": warn_count,
             "alerts": [a.to_dict() for a in all_alerts],
-            "guideline_standard": "ISTH & CLSI H54-A Guidelines",
+            "guideline_standard": "Demonstration thresholds; no clinical guideline asserted",
             "consensus_summary": f"Multi-agent supervision completed across 3 sub-agents with status [{status.value}].",
         }
 
@@ -103,8 +100,8 @@ class CoagCoordinator:
     def query_supervisory_chat(self, user_query: str) -> str:
         q = user_query.strip().lower()
         if "status" in q or "summary" in q:
-            return f"CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent currently tracking {len(self.case_registry)} cases in on-premises memory."
+            return f"Compatibility coordinator currently tracking {len(self.case_registry)} cases in process memory."
         elif "guideline" in q or "standard" in q:
-            return "Active clinical surveillance operates under ISTH & CLSI H54-A Guidelines validated protocols."
+            return "This compatibility workflow uses demonstration thresholds and does not implement a validated clinical guideline."
         else:
-            return f"CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent executive agent online. Zero-PHI air-gapped monitoring active."
+            return "Compatibility threshold-demo coordinator is available. No network-isolation or de-identification guarantee is asserted."
