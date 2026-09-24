@@ -72,8 +72,12 @@ def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
         causes = []
     elif pt_seconds < low:
         status = "Shortened"
-        interpretation = f"PT {pt_seconds:.1f}s is below normal ({low}s). Shortened PT may indicate hypercoagulable state."
-        causes = ["Hypercoagulable state", "Early DIC (hypercoagulable phase)", "Factor V Leiden (indirect)"]
+        interpretation = f"PT {pt_seconds:.1f}s is below the built-in example range ({low}s). A shortened PT is nonspecific."
+        causes = [
+            "Pre-analytic or reagent variation",
+            "Higher factor VII activity / acute-phase variation",
+            "Interpret with the local reference interval; PT alone is not a hypercoagulability test",
+        ]
     else:
         status = "Prolonged"
         excess = pt_seconds - high
@@ -131,7 +135,7 @@ def interpret_inr(inr: float, therapeutic_context: Optional[str] = None) -> Dict
         result["interpretation"] = f"INR {inr:.2f} is within normal range ({low}-{high})."
     elif inr < low:
         result["status"] = "Below normal"
-        result["interpretation"] = f"INR {inr:.2f} is below normal. May indicate hypercoagulable state."
+        result["interpretation"] = f"INR {inr:.2f} is below the built-in example non-anticoagulated range; this finding is nonspecific."
     else:
         result["status"] = "Elevated"
         result["interpretation"] = f"INR {inr:.2f} is above normal ({high})."
@@ -201,8 +205,12 @@ def interpret_aptt(
         result["possible_causes"] = []
     elif aptt_seconds < low:
         result["status"] = "Shortened"
-        result["interpretation"] = f"aPTT {aptt_seconds:.1f}s is below normal. May suggest hypercoagulable state."
-        result["possible_causes"] = ["Hypercoagulable state", "Acute phase reaction (elevated Factor VIII)"]
+        result["interpretation"] = f"aPTT {aptt_seconds:.1f}s is below the built-in example range. A shortened aPTT is nonspecific."
+        result["possible_causes"] = [
+            "Pre-analytic or reagent variation",
+            "Acute-phase elevation of factor VIII or other clotting factors",
+            "Interpret with the local reference interval; aPTT alone is not a hypercoagulability test",
+        ]
     else:
         result["status"] = "Prolonged"
         result["interpretation"] = f"aPTT {aptt_seconds:.1f}s is prolonged."
@@ -319,10 +327,10 @@ def interpret_mixing_study(
                 result["diagnosis"] = "Factor inhibitor (time-dependent)"
             else:
                 result["incubation_interpretation"] = (
-                    "Both immediate and incubated mixes correct: "
-                    "confirms factor deficiency. Order specific factor levels."
+                    "Both immediate and incubated mixes meet the supplied correction cutoff: "
+                    "supports a factor-deficiency pattern; correlate with specific factor assays."
                 )
-                result["diagnosis"] = "Factor deficiency"
+                result["diagnosis"] = "Factor deficiency pattern"
         else:
             # Immediate did not correct
             if incubated_rosner > rosner_index:
