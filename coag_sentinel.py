@@ -647,8 +647,8 @@ def process_batch(input_csv: str, output_csv: str) -> int:
     Process a CSV of coagulation test results.
 
     Expected columns vary by mode:
-      - interpret_pt: pt
-      - interpret_aptt: aptt, control_aptt (optional)
+      - interpret_pt: pt, pt_reference_low/high (optional)
+      - interpret_aptt: aptt, aptt_reference_low/high (optional)
       - mixing_study: patient_aptt, immediate_mix_aptt, incubated_mix_aptt (optional), control_aptt
       - factor_deficiency: pt, aptt, thrombin_time (optional)
       - warfarin: inr, indication (optional), previous_inr (optional)
@@ -669,7 +669,11 @@ def process_batch(input_csv: str, output_csv: str) -> int:
         try:
             if mode in {"interpret_pt", "pt"}:
                 pt = float(r.get("pt", ""))
-                result = interpret_pt(pt)
+                pt_range = (
+                    float(r.get("pt_reference_low", PT_NORMAL_RANGE[0])),
+                    float(r.get("pt_reference_high", PT_NORMAL_RANGE[1])),
+                )
+                result = interpret_pt(pt, pt_range)
                 row_dict["interpretation"] = result["interpretation"]
                 row_dict["status"] = result["status"]
                 row_dict["action"] = "Use the local laboratory reference interval for final interpretation."
@@ -677,7 +681,16 @@ def process_batch(input_csv: str, output_csv: str) -> int:
             elif mode in {"interpret_aptt", "aptt"}:
                 aptt = float(r.get("aptt", ""))
                 control = float(r["control_aptt"]) if r.get("control_aptt") else None
-                result = interpret_aptt(aptt, control_aptt=control, heparin_monitoring=False)
+                aptt_range = (
+                    float(r.get("aptt_reference_low", APTT_NORMAL_RANGE[0])),
+                    float(r.get("aptt_reference_high", APTT_NORMAL_RANGE[1])),
+                )
+                result = interpret_aptt(
+                    aptt,
+                    control_aptt=control,
+                    heparin_monitoring=False,
+                    reference_range=aptt_range,
+                )
                 row_dict["interpretation"] = result["interpretation"]
                 row_dict["status"] = result["status"]
                 row_dict["action"] = "Use the local laboratory reference interval for final interpretation."
@@ -697,7 +710,9 @@ def process_batch(input_csv: str, output_csv: str) -> int:
                 pt = float(r.get("pt", 12))
                 aptt = float(r.get("aptt", 30))
                 tt = float(r["thrombin_time"]) if r.get("thrombin_time") else None
-                result = identify_factor_deficiency(pt, aptt, tt)
+                pt_upper = float(r.get("pt_reference_high", PT_NORMAL_RANGE[1]))
+                aptt_upper = float(r.get("aptt_reference_high", APTT_NORMAL_RANGE[1]))
+                result = identify_factor_deficiency(pt, aptt, tt, pt_upper, aptt_upper)
                 row_dict["interpretation"] = result["pattern"]
                 row_dict["status"] = result["pathway"]
                 row_dict["action"] = ", ".join(result["recommended_workup"])
