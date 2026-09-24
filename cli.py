@@ -38,6 +38,8 @@ def main(argv=None):
     # PT
     p_pt = subparsers.add_parser("pt", help="Interpret PT")
     p_pt.add_argument("--pt", type=float, required=True, help="PT in seconds")
+    p_pt.add_argument("--reference-low", type=float, default=11.0, help="Laboratory PT lower reference limit")
+    p_pt.add_argument("--reference-high", type=float, default=13.5, help="Laboratory PT upper reference limit")
 
     # INR
     p_inr = subparsers.add_parser("inr", help="Interpret INR")
@@ -50,6 +52,8 @@ def main(argv=None):
     p_aptt.add_argument("--aptt", type=float, required=True, help="aPTT in seconds")
     p_aptt.add_argument("--control-aptt", type=float, default=None, help="Control aPTT")
     p_aptt.add_argument("--heparin", action="store_true", help="Heparin monitoring mode")
+    p_aptt.add_argument("--reference-low", type=float, default=25.0, help="Laboratory aPTT lower reference limit")
+    p_aptt.add_argument("--reference-high", type=float, default=35.0, help="Laboratory aPTT upper reference limit")
 
     # Mixing study
     p_mix = subparsers.add_parser("mixing", help="Interpret mixing study")
@@ -65,6 +69,8 @@ def main(argv=None):
     p_fac.add_argument("--pt", type=float, required=True, help="PT in seconds")
     p_fac.add_argument("--aptt", type=float, required=True, help="aPTT in seconds")
     p_fac.add_argument("--tt", type=float, default=None, help="Thrombin time (optional)")
+    p_fac.add_argument("--pt-upper", type=float, default=13.5, help="Laboratory PT upper reference limit")
+    p_fac.add_argument("--aptt-upper", type=float, default=35.0, help="Laboratory aPTT upper reference limit")
 
     # Warfarin
     p_war = subparsers.add_parser("warfarin", help="Warfarin dose assessment")
@@ -109,11 +115,19 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.command == "pt":
-        print(json.dumps(interpret_pt(args.pt), indent=2))
+        print(json.dumps(interpret_pt(args.pt, (args.reference_low, args.reference_high)), indent=2))
     elif args.command == "inr":
         print(json.dumps(interpret_inr(args.inr, args.context), indent=2))
     elif args.command == "aptt":
-        print(json.dumps(interpret_aptt(args.aptt, args.control_aptt, args.heparin), indent=2))
+        print(json.dumps(
+            interpret_aptt(
+                args.aptt,
+                args.control_aptt,
+                args.heparin,
+                (args.reference_low, args.reference_high),
+            ),
+            indent=2,
+        ))
     elif args.command == "mixing":
         print(json.dumps(interpret_mixing_study(
             args.patient_aptt,
@@ -123,7 +137,10 @@ def main(argv=None):
             args.ica_cutoff,
         ), indent=2))
     elif args.command == "factors":
-        print(json.dumps(identify_factor_deficiency(args.pt, args.aptt, args.tt), indent=2))
+        print(json.dumps(
+            identify_factor_deficiency(args.pt, args.aptt, args.tt, args.pt_upper, args.aptt_upper),
+            indent=2,
+        ))
     elif args.command == "warfarin":
         print(json.dumps(assess_warfarin_dose(
             args.inr, args.indication, args.previous_inr, args.dose,
