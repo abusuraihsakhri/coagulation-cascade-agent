@@ -16,8 +16,6 @@
   const savedTheme = localStorage.getItem("coag-theme");
   if (savedTheme === "dark" || savedTheme === "light") {
     root.dataset.theme = savedTheme;
-  } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    root.dataset.theme = "dark";
   }
 
   themeToggle.addEventListener("click", () => {
