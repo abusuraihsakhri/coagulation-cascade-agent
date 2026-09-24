@@ -1,6 +1,8 @@
 """
-Enterprise Security, PHI Outbound Guard, and HMAC-SHA256 Audit Trail.
+Basic identifier screening and an in-memory HMAC-SHA256 audit trail.
 
+The identifier screen is a defensive convenience, not a HIPAA de-identification or
+compliance mechanism.
 """
 import os
 import re
@@ -8,6 +10,7 @@ import json
 import time
 import hmac
 import hashlib
+import secrets
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
@@ -24,7 +27,7 @@ PHI_PATTERNS = [
 
 
 class SecurityException(Exception):
-    """Raised when outbound data violates HIPAA Safe Harbor or contains raw PHI."""
+    """Raised when the basic identifier screen detects a sensitive identifier pattern."""
     pass
 
 
@@ -38,7 +41,7 @@ def assert_no_phi(text: str) -> None:
         return
     for pattern in PHI_PATTERNS:
         if pattern.search(str(text)):
-            raise SecurityException(f"PHI Outbound Guard Violation: Sensitive identifier detected with pattern {pattern.pattern}")
+            raise SecurityException(f"Sensitive identifier pattern detected: {pattern.pattern}")
 
 
 class PHIGuard:
@@ -55,9 +58,10 @@ class PHIGuard:
 
 
 class AuditTrail:
-    """Cryptographic Tamper-Evident HMAC-SHA256 Audit Trail."""
+    """In-memory HMAC-SHA256 audit trail with signature verification."""
     def __init__(self, secret_key: Optional[str] = None):
-        self.secret_key = (secret_key or os.getenv("AUDIT_SECRET_KEY", "coagulation-cascade-agent-master-audit-key-2026")).encode("utf-8")
+        configured_key = secret_key or os.getenv("AUDIT_SECRET_KEY")
+        self.secret_key = configured_key.encode("utf-8") if configured_key else secrets.token_bytes(32)
         self.logs: List[Dict[str, Any]] = []
 
     def log(self, actor: str, actor_tier: str, event_type: str, details: Dict[str, Any]) -> Dict[str, Any]:
@@ -86,6 +90,14 @@ class AuditTrail:
         for i, entry in enumerate(self.logs):
             prev = self.logs[i-1]["current_hash"] if i > 0 else "GENESIS_BLOCK_0000000000000000"
             if entry["prev_hash"] != prev:
+                return False
+            sign_string = (
+                f"{entry['audit_id']}|{entry['timestamp']}|{entry['actor']}|"
+                f"{entry['actor_tier']}|{entry['event_type']}|{entry['payload_hash']}|"
+                f"{entry['prev_hash']}"
+            )
+            expected = hmac.new(self.secret_key, sign_string.encode("utf-8"), hashlib.sha256).hexdigest()
+            if not hmac.compare_digest(entry["current_hash"], expected):
                 return False
         return True
 
