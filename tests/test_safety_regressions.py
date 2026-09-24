@@ -53,3 +53,16 @@ def test_batch_supports_documented_pt_and_mixing_modes(tmp_path):
 
     assert rows[0]["status"] == "Normal"
     assert rows[1]["status"] == "Corrects at supplied cutoff"
+
+
+def test_custom_pt_reference_range_is_used():
+    result = interpret_pt(13.0, reference_range=(10.0, 12.0))
+    assert result["status"] == "Prolonged"
+    assert result["normal_range"] == (10.0, 12.0)
+
+
+def test_unsupported_model_provider_does_not_silently_fallback():
+    from agents.llm_factory import LLMFactory
+
+    with pytest.raises(ValueError):
+        LLMFactory.create("openai")
