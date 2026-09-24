@@ -1,5 +1,7 @@
 # Coagulation Cascade Agent
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/coagulation-cascade-agent/)
+
 Python and browser-based utilities for coagulation laboratory calculations and pattern interpretation. The repository includes PT/aPTT reference-interval checks, PT/aPTT pathway-pattern classification, mixing-study ICA/Rosner calculations, INR target-context classification, aPTT ratio calculations, and CSV batch processing.
 
 > **Clinical limitation:** this project is a laboratory/research utility. Reference intervals, mixing-study cutoffs, anticoagulation targets, and escalation procedures must be validated for the local laboratory and clinical protocol. The software does not prescribe warfarin doses, heparin infusion changes, or reversal treatment.
