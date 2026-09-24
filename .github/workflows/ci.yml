@@ -2,35 +2,78 @@ name: Coagulation Cascade CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
+
+permissions:
+  contents: read
 
 jobs:
-  test-and-verify:
+  test-and-build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pydantic pytest
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
 
-    - name: Run Pytest Suite
-      run: |
-        python -m pytest -p no:zarr -v
+      - name: Compile Python sources
+        run: python -m compileall -q cli.py coag_sentinel.py enrichment.py simulator.py agents coagulation_cascade_agent
 
-    - name: CLI Batch Smoke Test
-      run: |
-        python cli.py batch -i sample.csv -o out_smoke.csv
-        python -c "import os; assert os.path.exists('out_smoke.csv'); os.remove('out_smoke.csv')"
+      - name: Run test suite
+        run: python -m pytest -p no:zarr -q
+
+      - name: Build wheel and source distribution
+        run: python -m build
+
+      - name: Installed CLI smoke tests
+        run: |
+          coag-cascade pt --pt 12.0
+          coagulation-cascade-engine mixing --patient-aptt 55 --immediate-mix 32 --control-aptt 30 --ica-cutoff 15
+          coag-cascade batch -i sample.csv -o out_smoke.csv
+          python -c "import csv; rows=list(csv.DictReader(open('out_smoke.csv', encoding='utf-8'))); assert len(rows) == 7"
+          rm out_smoke.csv
+
+      - name: Compatibility launcher smoke test
+        run: python coag_sentinel_app.py pt --pt 12.0
+
+      - name: Static web smoke test
+        run: |
+          python -m http.server 8000 --directory web >/tmp/coag-pages.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          sleep 1
+          curl --fail --silent http://127.0.0.1:8000/ | grep -q "Coagulation Cascade Calculator"
+          curl --fail --silent http://127.0.0.1:8000/styles.css >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/app.js >/dev/null
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Audit runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . pip-audit
+          pip-audit --local

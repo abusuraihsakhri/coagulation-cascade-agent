@@ -68,9 +68,9 @@ class TestInterpretINR(unittest.TestCase):
         result = interpret_inr(3.5, "warfarin_standard")
         self.assertEqual(result["therapeutic_status"], "Slightly above therapeutic range")
 
-    def test_warfarin_mechanical_valve_in_range(self):
+    def test_warfarin_mechanical_valve_requires_context(self):
         result = interpret_inr(3.0, "warfarin_mechanical_valve")
-        self.assertEqual(result["therapeutic_status"], "In therapeutic range")
+        self.assertEqual(result["therapeutic_status"], "Context required")
 
     def test_warfarin_critically_elevated(self):
         result = interpret_inr(6.0, "warfarin_standard")
@@ -90,17 +90,14 @@ class TestInterpretAPTT(unittest.TestCase):
         result = interpret_aptt(20.0)
         self.assertEqual(result["status"], "Shortened")
 
-    def test_heparin_monitoring_in_range(self):
+    def test_heparin_monitoring_reports_ratio_without_universal_target(self):
         result = interpret_aptt(52.5, control_aptt=30.0, heparin_monitoring=True)
-        self.assertEqual(result["therapeutic_status"], "In therapeutic range")
+        self.assertEqual(result["therapeutic_status"], "Target range required")
+        self.assertEqual(result["aptt_ratio"], 1.75)
 
-    def test_heparin_monitoring_below(self):
-        result = interpret_aptt(35.0, control_aptt=30.0, heparin_monitoring=True)
-        self.assertEqual(result["therapeutic_status"], "Below therapeutic range")
-
-    def test_heparin_monitoring_above(self):
-        result = interpret_aptt(100.0, control_aptt=30.0, heparin_monitoring=True)
-        self.assertEqual(result["therapeutic_status"], "Significantly supratherapeutic")
+    def test_heparin_monitoring_requires_control(self):
+        with self.assertRaises(ValueError):
+            interpret_aptt(35.0, heparin_monitoring=True)
 
 
 class TestMixingStudy(unittest.TestCase):
@@ -143,7 +140,7 @@ class TestMixingStudy(unittest.TestCase):
             incubated_mix_aptt=33.0,
             control_aptt=30.0,
         )
-        self.assertEqual(result.get("diagnosis"), "Factor deficiency")
+        self.assertEqual(result.get("diagnosis"), "Factor deficiency pattern")
 
 
 class TestFactorDeficiency(unittest.TestCase):
@@ -191,13 +188,13 @@ class TestWarfarinDose(unittest.TestCase):
         result = assess_warfarin_dose(3.8, "standard")
         self.assertEqual(result["status"], "Above range")
 
-    def test_mechanical_valve_in_range(self):
+    def test_mechanical_valve_requires_specific_context(self):
         result = assess_warfarin_dose(3.0, "mechanical_valve")
-        self.assertEqual(result["status"], "In range")
+        self.assertEqual(result["status"], "Target context required")
 
-    def test_mechanical_valve_below(self):
-        result = assess_warfarin_dose(2.0, "mechanical_valve")
-        self.assertIn("below", result["status"].lower())
+    def test_mechanical_mitral_reference_context(self):
+        result = assess_warfarin_dose(3.0, "mechanical_mitral")
+        self.assertEqual(result["status"], "In range")
 
     def test_dangerously_elevated(self):
         result = assess_warfarin_dose(10.0, "standard")
@@ -209,21 +206,25 @@ class TestWarfarinDose(unittest.TestCase):
 
 
 class TestHeparinTherapy(unittest.TestCase):
-    def test_therapeutic(self):
+    def test_target_range_required_by_default(self):
         result = assess_heparin_therapy(52.5, 30.0)
-        self.assertEqual(result["status"], "Therapeutic")
+        self.assertEqual(result["status"], "Target range required")
 
-    def test_subtherapeutic(self):
-        result = assess_heparin_therapy(35.0, 30.0)
-        self.assertEqual(result["status"], "Subtherapeutic")
+    def test_within_supplied_local_range(self):
+        result = assess_heparin_therapy(52.5, 30.0, therapeutic_ratio_range=(1.5, 2.5))
+        self.assertEqual(result["status"], "Within supplied range")
 
-    def test_supratherapeutic(self):
-        result = assess_heparin_therapy(100.0, 30.0)
-        self.assertEqual(result["status"], "Significantly supratherapeutic")
+    def test_below_supplied_local_range(self):
+        result = assess_heparin_therapy(35.0, 30.0, therapeutic_ratio_range=(1.5, 2.5))
+        self.assertEqual(result["status"], "Below supplied range")
+
+    def test_above_supplied_local_range(self):
+        result = assess_heparin_therapy(100.0, 30.0, therapeutic_ratio_range=(1.5, 2.5))
+        self.assertEqual(result["status"], "Above supplied range")
 
     def test_lmwh_note(self):
         result = assess_heparin_therapy(40.0, 30.0, "lmwh")
-        self.assertIn("anti-Xa", result["recommendation"])
+        self.assertIn("not titrated by aPTT", result["note"])
 
 
 class TestProcessBatch(unittest.TestCase):

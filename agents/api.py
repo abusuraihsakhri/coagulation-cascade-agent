@@ -12,8 +12,8 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Coagulation Cascade Agent API",
-    description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
-    version="3.0.0-ENTERPRISE",
+    description="Compatibility API for the generic threshold demonstration workflow",
+    version="3.0.0",
 )
 
 
@@ -23,7 +23,7 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "coagulation-cascade-agent", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "HEALTHY", "service": "coagulation-cascade-agent", "domain": "Generic threshold demonstration", "standard": "No external clinical standard asserted", "version": "3.0.0"}
 
 
 @app.get("/metrics")

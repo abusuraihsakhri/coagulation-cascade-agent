@@ -1,203 +1,157 @@
 # Coagulation Cascade Agent
 
-> **Domain:** Hematology / Coagulation & Clinical Decision Support  
-> **Standards:** CLSI H54-A (Mixing Studies), ISTH SSC Guidelines (Lupus Anticoagulant & DIC Criteria), CAP Coagulation Checklists
+Python and browser-based utilities for coagulation laboratory calculations and pattern interpretation. The repository includes PT/aPTT reference-interval checks, PT/aPTT pathway-pattern classification, mixing-study ICA/Rosner calculations, INR target-context classification, aPTT ratio calculations, and CSV batch processing.
 
-[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests: Pytest](https://img.shields.io/badge/Pytest-Passing-brightgreen.svg)](tests/)
+> **Clinical limitation:** this project is a laboratory/research utility. Reference intervals, mixing-study cutoffs, anticoagulation targets, and escalation procedures must be validated for the local laboratory and clinical protocol. The software does not prescribe warfarin doses, heparin infusion changes, or reversal treatment.
 
----
+## Features
 
-## 📖 Overview
+- PT and aPTT interpretation with caller-supplied reference ranges.
+- PT/aPTT pattern mapping for extrinsic, intrinsic, common-pathway, and non-prolonged patterns.
+- Mixing-study ICA/Rosner calculation with a configurable laboratory cutoff and optional incubated result.
+- INR classification against explicit reference contexts without automated dose adjustment.
+- UFH aPTT ratio calculation with optional locally validated therapeutic bounds.
+- CSV batch processing for PT, aPTT, mixing studies, factor-pattern assessment, INR classification, and heparin-ratio assessment.
+- Responsive client-side web interface with light mode by default and an optional dark theme.
+- Pytest coverage, package-build checks, installed CLI smoke tests, dependency auditing, and GitHub Pages deployment.
 
-**Coagulation Cascade Agent** is a comprehensive clinical computational engine and diagnostic arbiter for hematology laboratory profiles. It evaluates:
-- **Prothrombin Time (PT)** and **International Normalized Ratio (INR)** for extrinsic pathway integrity and vitamin K antagonist (warfarin) monitoring.
-- **Activated Partial Thromboplastin Time (aPTT)** for intrinsic pathway kinetics and unfractionated heparin (UFH) titration.
-- **Mixing Studies (1:1 Normal Pooled Plasma)** with immediate and 2-hour 37°C incubation to differentiate factor deficiencies from circulating inhibitors (lupus anticoagulant vs. specific factor inhibitors).
-- **Factor Deficiency Differential Diagnosis** mapping extrinsic, intrinsic, and common pathway defects.
-- **Disseminated Intravascular Coagulation (DIC)** ISTH scoring algorithms.
+## Web interface
 
----
+The static application is in `web/`. It performs its calculations in the browser with plain JavaScript and makes no network requests. No form data are uploaded or stored by the application; only the selected theme is saved in local browser storage.
 
-## 🧬 Coagulation Cascade Pathway Kinetics
+The browser interface intentionally does not load Pyodide. The current calculations are small arithmetic/rule operations and do not require Python-only libraries, so a Python WebAssembly runtime would add substantial startup cost without improving the workflow.
 
-The classical coagulation cascade is structured into three convergent pathways:
+## Installation
 
-```
-Extrinsic Pathway (Tissue Factor, VII)           Intrinsic Pathway (XII, XI, IX, VIII)
-               \                                                  /
-                \                                                /
-                 v                                              v
-           [ PT / INR ]                                    [ aPTT ]
-                 \                                              /
-                  \                                            /
-                   +------------------> [ Common Pathway ] <--+
-                                        (X, V, II, I)
-                                              |
-                                              v
-                                   Prothrombin (II) -> Thrombin (IIa)
-                                              |
-                                              v
-                                   Fibrinogen (I)  -> Fibrin Clot
-```
+Python 3.10 or newer is required.
 
-### Reference Ranges & Pathway Mapping
-
-| Test | Normal Reference Range | Primary Pathway Evaluated | Critical Coagulation Factors |
-| :--- | :--- | :--- | :--- |
-| **PT** | 11.0 – 13.5 seconds | Extrinsic & Common | Factor VII, X, V, Prothrombin (II), Fibrinogen (I) |
-| **INR** | 0.8 – 1.2 (Target: 2.0–3.0 / 2.5–3.5) | Extrinsic (Warfarin standard) | Factor VII, X, II (Vitamin K-dependent) |
-| **aPTT** | 25.0 – 35.0 seconds | Intrinsic & Common | Factors XII, XI, IX, VIII, X, V, II, Fibrinogen |
-| **Thrombin Time (TT)** | 14.0 – 19.0 seconds | Fibrinogen Conversion | Fibrinogen quantity/function, Heparin effect |
-
----
-
-## 🧪 Prolonged aPTT Mixing Study Algorithm
-
-When an unexplained prolongation of aPTT is detected, a **1:1 mixing study** with Normal Pooled Plasma (NPP) is performed immediately and after a 2-hour 37°C incubation.
-
-```
-                             Patient aPTT Prolonged (> 35s)
-                                           |
-                                 Perform 1:1 Mix (NPP)
-                                           |
-                    +----------------------+----------------------+
-                    |                                             |
-           Immediate Correction                         No Immediate Correction
-          (Rosner Index < 10%)                           (Rosner Index >= 10%)
-                    |                                             |
-          2-Hour Incubation at 37°C                      Immediate Inhibitor
-                    |                                  (Lupus Anticoagulant or Heparin)
-         +----------+----------+                                  |
-         |                     |                          Order dRVVT Screen/Confirm
-    Stays Corrected      Prolongs Again                           Heparin Adsorption
-         |                     |
-   Factor Deficiency     Time-Dependent Inhibitor
-   (VIII, IX, XI, XII)   (e.g., Factor VIII Inhibitor)
-         |                     |
-  Order Factor Assays   Order Bethesda Assay Titers
-```
-
-### Mathematical Indices
-
-#### 1. Rosner Index (Index of Circulating Anticoagulant - ICA)
-$$\text{Rosner Index (\%)} = \frac{|\text{aPTT}_{\text{1:1 mix}} - \text{aPTT}_{\text{control}}|}{\text{aPTT}_{\text{patient}}} \times 100$$
-- **$< 10.0\%$:** Correction $\rightarrow$ Factor Deficiency.
-- **$\ge 10.0\%$:** Lack of correction $\rightarrow$ Inhibitor present.
-
-#### 2. Chang Percent Correction
-$$\text{Chang Ratio (\%)} = \frac{\text{aPTT}_{\text{patient}} - \text{aPTT}_{\text{1:1 mix}}}{\text{aPTT}_{\text{patient}} - \text{aPTT}_{\text{control}}} \times 100$$
-- **$> 70.0\%$:** Complete correction $\rightarrow$ Factor Deficiency.
-- **$< 58.0\%$:** Failure to correct $\rightarrow$ Circulating Inhibitor.
-
----
-
-## 📊 DIC Diagnostic Criteria (ISTH 2001 Scientific Subcommittee)
-
-Overt Disseminated Intravascular Coagulation (DIC) is calculated based on standard laboratory parameters in patients with an underlying disorder known to cause DIC:
-
-| Diagnostic Parameter | Clinical Laboratory Value | ISTH Points |
-| :--- | :--- | :---: |
-| **Platelet Count** | $> 100 \times 10^9/\text{L}$ | 0 |
-| | $50 - 100 \times 10^9/\text{L}$ | 1 |
-| | $< 50 \times 10^9/\text{L}$ | 2 |
-| **Elevated Fibrin-Related Markers** (D-Dimer / FDP) | No increase | 0 |
-| | Moderate increase | 2 |
-| | Strong increase | 3 |
-| **Prolonged Prothrombin Time (PT)** | $< 3$ seconds prolongation | 0 |
-| | $3 - 6$ seconds prolongation | 1 |
-| | $> 6$ seconds prolongation | 2 |
-| **Fibrinogen Level** | $> 1.0\text{ g/L}$ | 0 |
-| | $< 1.0\text{ g/L}$ | 1 |
-
-$$\text{Total Score} = \sum (\text{Points})$$
-- **$\text{Total Score} \ge 5$:** Compatible with **Overt DIC** (repeat score daily).
-- **$\text{Total Score} < 5$:** Suggestive of **Non-Overt DIC** (re-evaluate in 24–48 hours).
-
----
-
-## 💊 Anticoagulation Dosing & Heparin Monitoring Rules
-
-### Warfarin Monitoring (INR Targets)
-- **Standard Indications** (DVT/PE, Non-valvular Atrial Fibrillation): Target INR **2.0 – 3.0**.
-- **Mechanical Prosthetic Mitral Valve**: Target INR **2.5 – 3.5**.
-- **Management of Supratherapeutic INR:**
-  - $\text{INR } 4.5 - 10.0$ (no bleeding): Hold 1–2 doses, decrease maintenance dose by 10–20%.
-  - $\text{INR } > 10.0$ (no bleeding): Hold warfarin, administer oral vitamin K1 (2.5–5 mg).
-  - Serious/life-threatening bleed: Hold warfarin, IV vitamin K1 (10 mg), 4-factor Prothrombin Complex Concentrate (4F-PCC).
-
-### Unfractionated Heparin (UFH) Titration (aPTT Ratio)
-$$\text{Ratio} = \frac{\text{Patient aPTT}}{\text{Control aPTT}}$$
-- **Therapeutic Target:** $1.5 - 2.5\times$ control baseline.
-- **Ratio $< 1.2$:** Bolus 80 units/kg, increase infusion rate by 4 units/kg/hr.
-- **Ratio $1.2 - 1.49$:** Increase infusion rate by 2 units/kg/hr.
-- **Ratio $1.5 - 2.5$:** Therapeutic. Maintain current infusion rate.
-- **Ratio $2.51 - 3.0$:** Decrease infusion rate by 2 units/kg/hr.
-- **Ratio $> 3.0$:** Pause infusion for 1 hour, decrease rate by 3 units/kg/hr, monitor for hemorrhage.
-
----
-
-## 💻 CLI Quickstart
-
-### 1. Prothrombin Time (PT)
 ```bash
-python cli.py pt --pt 16.5
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
 ```
 
-### 2. International Normalized Ratio (INR)
+For development and testing:
+
 ```bash
-python cli.py inr --inr 2.8 --context warfarin_standard
+python -m pip install -e ".[dev]"
 ```
 
-### 3. Activated Partial Thromboplastin Time (aPTT)
+The optional compatibility API requires:
+
 ```bash
-python cli.py aptt --aptt 68.0 --control-aptt 30.0 --heparin
+python -m pip install -e ".[server]"
 ```
 
-### 4. 1:1 Mixing Study Interpretation
+## CLI examples
+
+### PT with a laboratory-specific reference interval
+
 ```bash
-python cli.py mixing --patient-aptt 58.0 --immediate-mix 32.0 --incubated-mix 49.0 --control-aptt 30.0
+coag-cascade pt --pt 12.8 --reference-low 10.5 --reference-high 13.0
 ```
 
-### 5. Factor Deficiency Pattern Identifier
+### aPTT
+
 ```bash
-python cli.py factors --pt 12.0 --aptt 54.0
+coag-cascade aptt --aptt 38 --reference-low 24 --reference-high 34
 ```
 
-### 6. Warfarin Titration Guidance
+### Mixing study
+
 ```bash
-python cli.py warfarin --inr 4.2 --indication standard
+coag-cascade mixing \
+  --patient-aptt 55 \
+  --immediate-mix 32 \
+  --incubated-mix 48 \
+  --control-aptt 30 \
+  --ica-cutoff 15
 ```
 
-### 7. Heparin Infusion Adjustment
+The ICA/Rosner cutoff is configurable because correction criteria are assay- and laboratory-specific.
+
+### PT/aPTT factor-pattern assessment
+
 ```bash
-python cli.py heparin --aptt 42.0 --control-aptt 30.0
+coag-cascade factors \
+  --pt 16 \
+  --aptt 30 \
+  --pt-upper 13.5 \
+  --aptt-upper 35
 ```
 
-### 8. Batch Processing
-Process clinical CSV cohort files with automated diagnostics:
+### INR target-context classification
+
 ```bash
-python cli.py batch -i sample.csv -o results.csv
+coag-cascade warfarin --inr 2.8 --indication standard
 ```
 
----
+Supported mechanical-valve reference contexts are `mechanical_mitral`, `mechanical_aortic_bileaflet_no_risk`, and `mechanical_aortic_high_risk`. The legacy `mechanical_valve` value is accepted but intentionally returns that more valve/risk context is required.
 
-## 🧪 Verification & Testing
+### UFH aPTT ratio with a locally validated range
 
-Execute the complete test suite:
 ```bash
-python -m pytest -p no:zarr -v
+coag-cascade heparin \
+  --aptt 52.5 \
+  --control-aptt 30 \
+  --target-ratio-low 1.5 \
+  --target-ratio-high 2.5
 ```
 
-Execute CLI batch smoke test:
+The supplied range is used only for classification. The tool does not generate an infusion-rate change.
+
+### Batch processing
+
 ```bash
-python cli.py batch -i sample.csv -o out_smoke.csv
-python -c "import os; assert os.path.exists('out_smoke.csv'); os.remove('out_smoke.csv')"
+coag-cascade batch -i sample.csv -o results.csv
 ```
 
----
+Supported `mode` values include `pt`, `aptt`, `mixing_study`, `factor_deficiency`, `warfarin`, and `heparin`. Optional CSV columns can provide local reference limits, an ICA cutoff, or UFH ratio bounds.
 
-## 📜 License
+## Reference-range behavior
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+The module retains example defaults for backward compatibility:
+
+- PT: 11.0–13.5 s
+- aPTT: 25.0–35.0 s
+- non-anticoagulated INR: 0.8–1.2
+
+These values are not universal. PT/aPTT reference intervals depend on the assay, reagent, instrument, and laboratory validation. For clinical use, pass the laboratory's own limits.
+
+Likewise, aPTT response to unfractionated heparin is reagent/coagulometer dependent, and mechanical-valve INR targets depend on valve position/type and thromboembolic risk factors. The anticoagulation helpers therefore classify values but do not prescribe treatment changes.
+
+## Compatibility modules
+
+The `agents/` and `coagulation_cascade_agent/` namespaces retain older demonstration APIs for compatibility. Their generic thresholds are explicitly nonclinical and are not presented as CAP, CLSI, ISO, ISTH, or other guideline-derived decision rules. The deterministic mock adapter does not silently connect to external model providers.
+
+The identifier-pattern screen in `agents/base.py` is a defensive programming aid only. It is not a HIPAA Safe Harbor implementation and does not certify de-identification.
+
+## Testing
+
+```bash
+python -m pytest -p no:zarr -q
+python -m build
+```
+
+CI runs the test suite and package build on Python 3.10, 3.11, and 3.12, exercises both installed console-script names, smoke-tests the static site, and runs a dependency audit.
+
+## Local web preview
+
+```bash
+python -m http.server 8000 --directory web
+```
+
+Then open `http://127.0.0.1:8000/`.
+
+## Technology and browser support
+
+- Python 3.10+
+- Pydantic 2.x for compatibility schemas
+- Vanilla HTML, CSS, and JavaScript for the browser interface
+- Optional FastAPI/Uvicorn compatibility server
+- Current versions of Chromium, Firefox, and Safari
+
+## License
+
+MIT. See [LICENSE](LICENSE).

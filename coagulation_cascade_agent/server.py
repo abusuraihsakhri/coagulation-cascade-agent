@@ -1,6 +1,4 @@
-"""
-FastAPI REST Application & Webhooks for CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent.
-"""
+"""Optional FastAPI wrapper for the legacy threshold-demo coordinator."""
 from typing import Dict, Any, Optional
 from .models import ClinicalCasePayload
 from .agents import CoagCoordinator
@@ -13,9 +11,9 @@ def create_app():
         from pydantic import BaseModel
 
         app = FastAPI(
-            title="CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent",
-            description="Evaluates prolonged PT/aPTT mixing studies (Rosner Index / ICA), factor deficiencies (VIII, IX, XI), and dRVVT lupus anticoagulant confirmatory ratios.",
-            version="2.0.0-PRO",
+            title="Coagulation Cascade Compatibility API",
+            description="Compatibility API for a generic demonstration threshold workflow. It is not a validated clinical decision-support service.",
+            version="2.1.0",
         )
 
         class AuditRequest(BaseModel):
@@ -33,7 +31,7 @@ def create_app():
 
         @app.get("/health")
         def health():
-            return {"status": "HEALTHY", "system": "coagulation-cascade-agent", "domain": "Hematology / Coagulation", "version": "2.0.0-PRO"}
+            return {"status": "HEALTHY", "system": "coagulation-cascade-agent", "domain": "Compatibility threshold demo", "version": "2.1.0"}
 
         @app.post("/api/audit")
         def api_audit(req: AuditRequest):

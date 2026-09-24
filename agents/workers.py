@@ -1,8 +1,4 @@
-"""
-Specialized Domain Worker Agents for Coagulation Cascade Agent.
-Domain: Clinical & Biomedical AI
-Standard: CAP / CLSI / ISO Standards
-"""
+"""Generic threshold-demo workers retained for backwards compatibility."""
 import uuid
 from typing import Dict, Any, List, Optional
 from .models import SystemTaskPayload, AgentAlert, UrgencyLevel, SystemIntegrityStatus
@@ -20,8 +16,8 @@ class InvariantQCWorker:
                 origin_worker="InvariantQCWorker",
                 urgency=UrgencyLevel.ELEVATED,
                 summary="Primary Metric Threshold Exceeded",
-                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds upper reference limit (25.00) under CAP / CLSI / ISO Standards.",
-                actionable_remediation="Initiate recalibration workflow and review secondary parameters.",
+                technical_details=f"Primary measurement ({payload.primary_metric:.2f}) exceeds the configured demonstration threshold (25.00).",
+                actionable_remediation="Review the configured threshold and secondary parameters.",
             ))
         return alerts
 
@@ -39,7 +35,7 @@ class SafetyEscalationWorker:
                 urgency=UrgencyLevel.CRITICAL_STAT if payload.is_critical_flag else UrgencyLevel.ELEVATED,
                 summary="Critical Safety Interlock Triggered",
                 technical_details=f"CriticalFlag={payload.is_critical_flag} with secondary index {payload.secondary_metric:.2f}.",
-                actionable_remediation="Execute immediate closed-loop escalation and notify attending supervisor.",
+                actionable_remediation="Review the critical flag and apply the caller's validated escalation procedure.",
             ))
         return alerts
 
@@ -57,7 +53,7 @@ class ProtocolConformanceWorker:
                 origin_worker="ProtocolConformanceWorker",
                 urgency=UrgencyLevel.ELEVATED,
                 summary="Protocol Conformance Discordance Detected",
-                technical_details=f"Descriptor '{payload.status_descriptor}' indicates discordance with CAP / CLSI / ISO Standards standards.",
-                actionable_remediation="Re-evaluate input specimen or rerun secondary confirmation assay.",
+                technical_details=f"Descriptor '{payload.status_descriptor}' matches a configured demonstration discordance keyword.",
+                actionable_remediation="Review the input and apply the relevant validated domain procedure.",
             ))
         return alerts

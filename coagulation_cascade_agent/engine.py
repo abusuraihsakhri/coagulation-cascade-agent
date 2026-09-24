@@ -1,7 +1,7 @@
-"""
-Clinical Algorithmic Engine & Guideline Rules for CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent.
-Domain: Hematology / Coagulation
-Standard: ISTH & CLSI H54-A Guidelines
+"""Legacy generic threshold engine retained for backwards compatibility.
+
+The numeric thresholds below are demonstration defaults, not clinical reference
+limits or guideline-derived treatment rules.
 """
 import math
 from typing import Dict, Any, List, Optional
@@ -9,7 +9,7 @@ from .models import ClinicalCasePayload, AgentAlert, UrgencyLevel, ClinicalInteg
 
 
 class ClinicalDomainEngine:
-    GUIDELINE = "ISTH & CLSI H54-A Guidelines"
+    GUIDELINE = "Demonstration thresholds; no clinical guideline asserted"
     PRIMARY_BASELINE_LIMIT = 20.0
     SECONDARY_ALERT_LIMIT = 10.0
 
@@ -18,8 +18,8 @@ class ClinicalDomainEngine:
         if value > cls.PRIMARY_BASELINE_LIMIT:
             return {
                 "title": "Primary Metric Threshold Exceeded",
-                "finding": f"Observed value ({value:.2f}) exceeds ISTH & CLSI H54-A Guidelines clinical baseline limit ({cls.PRIMARY_BASELINE_LIMIT:.1f}).",
-                "recommendation": "Perform immediate secondary verification and calibration review.",
+                "finding": f"Observed value ({value:.2f}) exceeds the configured demonstration threshold ({cls.PRIMARY_BASELINE_LIMIT:.1f}).",
+                "recommendation": "Review the configured threshold and apply the relevant validated local procedure.",
             }
         return None
 
@@ -29,7 +29,7 @@ class ClinicalDomainEngine:
             return {
                 "title": "STAT Kinetic Escalation Triggered",
                 "finding": f"Kinetic parameter ({value:.2f}) with STAT={is_stat} requires prioritized supervision.",
-                "recommendation": "Activate closed-loop verbal clinician notification protocol per Joint Commission standards.",
+                "recommendation": "Apply the caller's validated escalation procedure if this flag represents a real clinical priority.",
             }
         return None
 
@@ -39,7 +39,7 @@ class ClinicalDomainEngine:
         if "DISCORDANT" in status_upper or "EQUIVOCAL" in status_upper or "MUTANT" in status_upper:
             return {
                 "title": "Phenotypic / Biomarker Discordance Identified",
-                "finding": f"Status flag '{status_flag}' indicates divergence from standard diagnostic concordance.",
-                "recommendation": f"Order reflex confirmatory testing per ISTH & CLSI H54-A Guidelines clinical recommendations.",
+                "finding": f"Status flag '{status_flag}' matches a configured demonstration discordance keyword.",
+                "recommendation": "Review the input and apply the relevant validated confirmatory procedure.",
             }
         return None
