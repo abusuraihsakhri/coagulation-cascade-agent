@@ -3,14 +3,15 @@
 Coagulation Cascade Calculator & Interpreter.
 
 Implements:
-  - PT/INR interpretation (Normal PT 11-13.5s, INR 0.8-1.2)
-  - aPTT interpretation (Normal 25-35 seconds)
-  - Mixing study interpretation (immediate and 2-hour incubation)
-  - Factor deficiency identification from PT/aPTT patterns
-  - Warfarin monitoring (target INR 2-3, mechanical valve 2.5-3.5)
-  - Heparin monitoring (target aPTT 1.5-2.5× control)
+  - PT/INR and aPTT reference-interval interpretation
+  - Mixing-study ICA/Rosner calculations with a configurable cutoff
+  - Factor-pattern interpretation from PT/aPTT
+  - INR classification against explicit reference contexts
+  - aPTT ratio calculation against an optional local UFH target range
+  - CSV batch processing
 
-Zero-dependency Python stdlib implementation.
+The built-in PT/aPTT intervals are examples, not laboratory-universal limits.
+Anticoagulant dose changes are deliberately not generated.
 Author: Dr. Abu Suraih Sakhri
 License: MIT
 """
@@ -100,6 +101,7 @@ def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
         "status": status,
         "interpretation": interpretation,
         "possible_causes": causes,
+        "reference_note": "PT reference intervals are laboratory/reagent specific; the built-in range is an example.",
     }
 
 
@@ -121,6 +123,7 @@ def interpret_inr(inr: float, therapeutic_context: Optional[str] = None) -> Dict
         "test": "INR",
         "value": inr,
         "normal_range": INR_NORMAL_RANGE,
+        "reference_note": "Interpret INR against the clinical indication and prescribed target; the non-anticoagulated range is contextual.",
     }
 
     if low <= inr <= high:
@@ -189,6 +192,7 @@ def interpret_aptt(
         "value": aptt_seconds,
         "unit": "seconds",
         "normal_range": APTT_NORMAL_RANGE,
+        "reference_note": "aPTT reference intervals are laboratory/reagent specific; the built-in range is an example.",
     }
 
     if low <= aptt_seconds <= high:
@@ -622,7 +626,7 @@ def process_batch(input_csv: str, output_csv: str) -> int:
       - mixing_study: patient_aptt, immediate_mix_aptt, incubated_mix_aptt (optional), control_aptt
       - factor_deficiency: pt, aptt, thrombin_time (optional)
       - warfarin: inr, indication (optional), previous_inr (optional)
-      - heparin: aptt, control_aptt, heparin_type (optional)
+      - heparin: aptt, control_aptt, heparin_type (optional), target_ratio_low/high (optional)
     """
     with open(input_csv, mode="r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -637,7 +641,33 @@ def process_batch(input_csv: str, output_csv: str) -> int:
         row_dict = dict(r)
 
         try:
-            if mode == "factor_deficiency":
+            if mode in {"interpret_pt", "pt"}:
+                pt = float(r.get("pt", ""))
+                result = interpret_pt(pt)
+                row_dict["interpretation"] = result["interpretation"]
+                row_dict["status"] = result["status"]
+                row_dict["action"] = "Use the local laboratory reference interval for final interpretation."
+
+            elif mode in {"interpret_aptt", "aptt"}:
+                aptt = float(r.get("aptt", ""))
+                control = float(r["control_aptt"]) if r.get("control_aptt") else None
+                result = interpret_aptt(aptt, control_aptt=control, heparin_monitoring=False)
+                row_dict["interpretation"] = result["interpretation"]
+                row_dict["status"] = result["status"]
+                row_dict["action"] = "Use the local laboratory reference interval for final interpretation."
+
+            elif mode in {"mixing_study", "mixing"}:
+                patient = float(r.get("patient_aptt", r.get("aptt", "")))
+                immediate = float(r.get("immediate_mix_aptt", ""))
+                incubated = float(r["incubated_mix_aptt"]) if r.get("incubated_mix_aptt") else None
+                control = float(r.get("control_aptt", 30.0))
+                cutoff = float(r.get("ica_cutoff", 15.0))
+                result = interpret_mixing_study(patient, immediate, incubated, control, cutoff)
+                row_dict["interpretation"] = result["immediate_interpretation"]
+                row_dict["status"] = "Corrects at supplied cutoff" if result["immediate_correction"] else "Does not correct at supplied cutoff"
+                row_dict["action"] = "Confirm the cutoff and interpretation against the local assay validation."
+
+            elif mode == "factor_deficiency":
                 pt = float(r.get("pt", 12))
                 aptt = float(r.get("aptt", 30))
                 tt = float(r["thrombin_time"]) if r.get("thrombin_time") else None
@@ -657,7 +687,10 @@ def process_batch(input_csv: str, output_csv: str) -> int:
             elif mode == "heparin":
                 aptt = float(r.get("aptt", 30))
                 control = float(r.get("control_aptt", 30))
-                result = assess_heparin_therapy(aptt, control)
+                low = float(r["target_ratio_low"]) if r.get("target_ratio_low") else None
+                high = float(r["target_ratio_high"]) if r.get("target_ratio_high") else None
+                target = (low, high) if low is not None and high is not None else None
+                result = assess_heparin_therapy(aptt, control, r.get("heparin_type", "unfractionated"), target)
                 row_dict["interpretation"] = f"aPTT ratio {result['ratio']} - {result['status']}"
                 row_dict["status"] = result["status"]
                 row_dict["action"] = result["action"]
