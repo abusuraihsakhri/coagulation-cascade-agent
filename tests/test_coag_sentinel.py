@@ -140,7 +140,7 @@ class TestMixingStudy(unittest.TestCase):
             incubated_mix_aptt=33.0,
             control_aptt=30.0,
         )
-        self.assertEqual(result.get("diagnosis"), "Factor deficiency")
+        self.assertEqual(result.get("diagnosis"), "Factor deficiency pattern")
 
 
 class TestFactorDeficiency(unittest.TestCase):
