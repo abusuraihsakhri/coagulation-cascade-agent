@@ -41,20 +41,27 @@ def _require_positive(value: float, name: str) -> float:
     return value
 
 
+def _validate_range(value: Tuple[float, float], name: str) -> Tuple[float, float]:
+    low, high = map(float, value)
+    if not math.isfinite(low) or not math.isfinite(high) or low <= 0 or high <= low:
+        raise ValueError(f"{name} must contain finite positive values with low < high")
+    return (low, high)
+
+
 def _validate_ratio_range(value: Optional[Tuple[float, float]]) -> Optional[Tuple[float, float]]:
     if value is None:
         return None
-    low, high = map(float, value)
-    if not math.isfinite(low) or not math.isfinite(high) or low <= 0 or high <= low:
-        raise ValueError("therapeutic_ratio_range must contain finite positive values with low < high")
-    return (low, high)
+    return _validate_range(value, "therapeutic_ratio_range")
 
 
 # ---------------------------------------------------------------------------
 # PT/INR Interpretation
 # ---------------------------------------------------------------------------
 
-def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
+def interpret_pt(
+    pt_seconds: float,
+    reference_range: Tuple[float, float] = PT_NORMAL_RANGE,
+) -> Dict[str, Any]:
     """
     Interpret Prothrombin Time (PT).
 
@@ -65,7 +72,7 @@ def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
         Dict with status, interpretation, and possible causes
     """
     pt_seconds = _require_positive(pt_seconds, "pt_seconds")
-    low, high = PT_NORMAL_RANGE
+    low, high = _validate_range(reference_range, "reference_range")
     if low <= pt_seconds <= high:
         status = "Normal"
         interpretation = f"PT {pt_seconds:.1f}s is within normal range ({low}-{high}s)."
@@ -101,7 +108,7 @@ def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
         "test": "PT",
         "value": pt_seconds,
         "unit": "seconds",
-        "normal_range": PT_NORMAL_RANGE,
+        "normal_range": (low, high),
         "status": status,
         "interpretation": interpretation,
         "possible_causes": causes,
@@ -109,7 +116,11 @@ def interpret_pt(pt_seconds: float) -> Dict[str, Any]:
     }
 
 
-def interpret_inr(inr: float, therapeutic_context: Optional[str] = None) -> Dict[str, Any]:
+def interpret_inr(
+    inr: float,
+    therapeutic_context: Optional[str] = None,
+    reference_range: Tuple[float, float] = INR_NORMAL_RANGE,
+) -> Dict[str, Any]:
     """
     Interpret INR (International Normalized Ratio).
 
@@ -121,12 +132,12 @@ def interpret_inr(inr: float, therapeutic_context: Optional[str] = None) -> Dict
         Dict with status, interpretation, and therapeutic assessment
     """
     inr = _require_positive(inr, "inr")
-    low, high = INR_NORMAL_RANGE
+    low, high = _validate_range(reference_range, "reference_range")
 
     result = {
         "test": "INR",
         "value": inr,
-        "normal_range": INR_NORMAL_RANGE,
+        "normal_range": (low, high),
         "reference_note": "Interpret INR against the clinical indication and prescribed target; the non-anticoagulated range is contextual.",
     }
 
@@ -175,6 +186,7 @@ def interpret_aptt(
     aptt_seconds: float,
     control_aptt: Optional[float] = None,
     heparin_monitoring: bool = False,
+    reference_range: Tuple[float, float] = APTT_NORMAL_RANGE,
 ) -> Dict[str, Any]:
     """
     Interpret Activated Partial Thromboplastin Time (aPTT).
@@ -190,12 +202,12 @@ def interpret_aptt(
     aptt_seconds = _require_positive(aptt_seconds, "aptt_seconds")
     if control_aptt is not None:
         control_aptt = _require_positive(control_aptt, "control_aptt")
-    low, high = APTT_NORMAL_RANGE
+    low, high = _validate_range(reference_range, "reference_range")
     result = {
         "test": "aPTT",
         "value": aptt_seconds,
         "unit": "seconds",
-        "normal_range": APTT_NORMAL_RANGE,
+        "normal_range": (low, high),
         "reference_note": "aPTT reference intervals are laboratory/reagent specific; the built-in range is an example.",
     }
 
@@ -357,6 +369,8 @@ def identify_factor_deficiency(
     pt_seconds: float,
     aptt_seconds: float,
     thrombin_time: Optional[float] = None,
+    pt_upper: float = PT_NORMAL_RANGE[1],
+    aptt_upper: float = APTT_NORMAL_RANGE[1],
 ) -> Dict[str, Any]:
     """
     Identify likely factor deficiency from PT/aPTT pattern.
@@ -379,14 +393,18 @@ def identify_factor_deficiency(
     aptt_seconds = _require_positive(aptt_seconds, "aptt_seconds")
     if thrombin_time is not None:
         thrombin_time = _require_positive(thrombin_time, "thrombin_time")
-    pt_abnormal = pt_seconds > PT_NORMAL_RANGE[1]
-    aptt_abnormal = aptt_seconds > APTT_NORMAL_RANGE[1]
+    pt_upper = _require_positive(pt_upper, "pt_upper")
+    aptt_upper = _require_positive(aptt_upper, "aptt_upper")
+    pt_abnormal = pt_seconds > pt_upper
+    aptt_abnormal = aptt_seconds > aptt_upper
 
     result = {
         "pt": pt_seconds,
         "aptt": aptt_seconds,
         "pt_prolonged": pt_abnormal,
         "aptt_prolonged": aptt_abnormal,
+        "pt_upper_limit": pt_upper,
+        "aptt_upper_limit": aptt_upper,
     }
 
     if pt_abnormal and not aptt_abnormal:
