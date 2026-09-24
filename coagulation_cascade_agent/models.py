@@ -1,7 +1,7 @@
-"""
-Clinical Data Models & Enums for CoagSentinel: Mixing Study, Factor Assay & Lupus Anticoagulant Diagnostic Agent.
-Domain: Hematology / Coagulation
-Standard: ISTH & CLSI H54-A Guidelines
+"""Legacy data models retained for backwards compatibility.
+
+The associated threshold workflow is a demonstration and is not a validated
+clinical guideline implementation.
 """
 import datetime
 from dataclasses import dataclass, field
@@ -43,7 +43,7 @@ class AgentAlert:
     title: str
     clinical_finding: str
     actionable_recommendation: str
-    guideline_citation: str = "ISTH & CLSI H54-A Guidelines"
+    guideline_citation: str = "Demonstration threshold; no clinical guideline asserted"
     timestamp: str = field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
