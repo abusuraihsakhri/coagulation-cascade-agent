@@ -57,6 +57,8 @@ def main(argv=None):
     p_mix.add_argument("--immediate-mix", type=float, required=True, help="Immediate mix aPTT")
     p_mix.add_argument("--incubated-mix", type=float, default=None, help="2-hour incubated mix aPTT")
     p_mix.add_argument("--control-aptt", type=float, default=30.0, help="Control aPTT")
+    p_mix.add_argument("--ica-cutoff", type=float, default=15.0,
+                       help="Locally validated ICA/Rosner cutoff (default: 15.0 for demonstration)")
 
     # Factor deficiency
     p_fac = subparsers.add_parser("factors", help="Identify factor deficiency pattern")
@@ -68,7 +70,9 @@ def main(argv=None):
     p_war = subparsers.add_parser("warfarin", help="Warfarin dose assessment")
     p_war.add_argument("--inr", type=float, required=True, help="Current INR")
     p_war.add_argument("--indication", default="standard",
-                       help="Indication: standard or mechanical_valve")
+                       help=("Reference context: standard, mechanical_mitral, "
+                             "mechanical_aortic_bileaflet_no_risk, "
+                             "mechanical_aortic_high_risk, or legacy mechanical_valve"))
     p_war.add_argument("--previous-inr", type=float, default=None, help="Previous INR")
     p_war.add_argument("--dose", type=float, default=None, help="Current weekly dose (mg)")
 
@@ -77,6 +81,10 @@ def main(argv=None):
     p_hep.add_argument("--aptt", type=float, required=True, help="Patient aPTT")
     p_hep.add_argument("--control-aptt", type=float, required=True, help="Control aPTT")
     p_hep.add_argument("--type", default="unfractionated", help="Heparin type")
+    p_hep.add_argument("--target-ratio-low", type=float, default=None,
+                       help="Lower bound of a locally validated UFH aPTT ratio range")
+    p_hep.add_argument("--target-ratio-high", type=float, default=None,
+                       help="Upper bound of a locally validated UFH aPTT ratio range")
 
     # Batch
     p_batch = subparsers.add_parser("batch", help="Batch process CSV")
@@ -108,7 +116,11 @@ def main(argv=None):
         print(json.dumps(interpret_aptt(args.aptt, args.control_aptt, args.heparin), indent=2))
     elif args.command == "mixing":
         print(json.dumps(interpret_mixing_study(
-            args.patient_aptt, args.immediate_mix, args.incubated_mix, args.control_aptt,
+            args.patient_aptt,
+            args.immediate_mix,
+            args.incubated_mix,
+            args.control_aptt,
+            args.ica_cutoff,
         ), indent=2))
     elif args.command == "factors":
         print(json.dumps(identify_factor_deficiency(args.pt, args.aptt, args.tt), indent=2))
@@ -117,7 +129,15 @@ def main(argv=None):
             args.inr, args.indication, args.previous_inr, args.dose,
         ), indent=2))
     elif args.command == "heparin":
-        print(json.dumps(assess_heparin_therapy(args.aptt, args.control_aptt, args.type), indent=2))
+        if (args.target_ratio_low is None) != (args.target_ratio_high is None):
+            parser.error("--target-ratio-low and --target-ratio-high must be supplied together")
+        target = None
+        if args.target_ratio_low is not None:
+            target = (args.target_ratio_low, args.target_ratio_high)
+        print(json.dumps(
+            assess_heparin_therapy(args.aptt, args.control_aptt, args.type, target),
+            indent=2,
+        ))
     elif args.command == "batch":
         n = process_batch(args.input, args.output)
         print(f"Processed {n} records -> {args.output}")
