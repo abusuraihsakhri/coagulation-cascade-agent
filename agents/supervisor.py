@@ -1,7 +1,4 @@
-"""
-Supervisor Orchestrator & Operations Intelligence for Coagulation Cascade Agent.
-Domain: Clinical & Biomedical AI
-"""
+"""Generic threshold-demo supervisor retained for backwards compatibility."""
 import uuid
 from typing import Dict, Any, List, Optional
 from .base import AuditLogger, ActionExecutor, PHIGuard
@@ -21,7 +18,7 @@ class SystemSupervisor:
         self.dossier_registry: Dict[str, ConsensusDossier] = {}
 
     def process_task(self, payload: SystemTaskPayload, actor: str = "SystemSupervisor") -> ConsensusDossier:
-        # Zero-PHI outbound validation
+        # Basic identifier-pattern screening; this is not de-identification certification.
         PHIGuard.assert_no_phi(payload.task_id)
         PHIGuard.assert_no_phi(payload.target_identifier)
         PHIGuard.assert_no_phi(payload.status_descriptor)
@@ -75,5 +72,5 @@ class SystemSupervisor:
 
     def query_supervisory_chat(self, query: str) -> str:
         PHIGuard.assert_no_phi(query)
-        prompt = f"Supervisor inquiry for Coagulation Cascade Agent under CAP / CLSI / ISO Standards: {query}"
+        prompt = f"Supervisor inquiry for Coagulation Cascade Agent demonstration workflow: {query}"
         return self.llm.invoke(prompt)
